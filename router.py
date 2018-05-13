@@ -22,9 +22,8 @@ def showRoutingTable():
     '''获取路由表'''
     global Routing_Table
     print("Destination        Distance        Next Node\n")
-    for router_ip, route in Routing_table:
-        print(router_ip + route['Distance'] + route['Next_Node'])
-
+    for router_ip in Routing_Table:
+        print(router_ip + "        " + Routing_Table[router_ip]['Distance'] + "        " + Routing_Table[router_ip]['Next_Node'])
 
 def addNeighbour(ip, distance):
     '''添加邻居'''
@@ -38,17 +37,17 @@ def traceRoute(destination):
     print(ip + '->')
     s = socket.socket()
     # s.bind((ip, command_port))
-    router_ip = Routing_Table[destination][Next_Node]
-    s.connect(router_ip)
+    router_ip = Routing_Table[destination]["Next_Node"]
+    s.connect((router_ip, listen_port))
     s.send("traceroute" + destination).encode()
 
 def leave():
     '''该路由器离开网络'''
     global Routing_Table
-    for router_ip, route in Routing_table:
+    for router_ip in Routing_Table:
         s = socket.socket()
         # s.bind((ip, command_port))
-        s.connect(router_ip)
+        s.connect((router_ip, listen_port))
         s.send("leave" + ip).encode()
         response = s.recv(1024).decode()
         print(response)
@@ -73,7 +72,7 @@ def commandMain():
             '''该路由器离开（损坏）'''
             '''这里需要算法自动执行程序更新路由表'''
             leave()
-            os._exit()
+            break
         else:
             print("Invalid input!")
 
