@@ -3,7 +3,7 @@ import threading
 import os
 
 
-ip = '172.18.35.15'
+ip = '127.0.0.1'
 listen_port = 16330
 command_port = 16440
 exitFlag = 0
@@ -32,14 +32,26 @@ def addNeighbour(ip, distance):
     temp['Next_Node'] = ip
     Routing_Table[ip] = temp
 
-def traceRoute(destination):
-    '''打印当前ip并调用下一路由器的该函数'''
-    print(ip + '->')
-    s = socket.socket()
-    # s.bind((ip, command_port))
-    router_ip = Routing_Table[destination]["Next_Node"]
-    s.connect((router_ip, listen_port))
-    s.send("traceroute" + destination).encode()
+def traceRoute(myip, destination):
+    '''获取从源IP到目的IP的路径'''
+    print("最多五个越点跟踪")
+    print("从" + myip + "到" + destination + "的路由: ")
+    ttl = 1
+    while ttl <= 5:
+        s = socket.socket()
+        nextip = Routing_Table[destination]["Next_Node"]
+        s.connect((nextip, listen_port))
+        s.send("traceroute" + " " + str(ttl) + " "  + myip + " " +destination).encode()
+        '''源IP报文格式: traceroute ttl myip destinationip'''
+        # responsr = s.recv(1024).decode().split()
+        # '''中间路由器回复报文格式: response sourceip curip'''
+        # if response[0] == "response" and response[1] == myip:
+        #     print(str(ttl) + " " + response[2])
+        # if response[2] == destination:
+        #     print("跟踪完成")
+        #     break
+        s.close()
+        ttl = ttl + 1
 
 def leave():
     '''该路由器离开网络'''
@@ -48,7 +60,7 @@ def leave():
         s = socket.socket()
         # s.bind((ip, command_port))
         s.connect((router_ip, listen_port))
-        s.send("leave" + ip).encode()
+        s.send("leave" + " " + ip).encode()
         response = s.recv(1024).decode()
         print(response)
         del Routing_Table[router_ip]
@@ -65,9 +77,9 @@ def commandMain():
         elif command[0] == "show":
             showRoutingTable()
         elif command[0] == "traceroute":
-            '''格式例：traceroute 192.168.199.143'''
+            '''格式例：traceroute ttl myip destinationip'''
             destination = command[1]
-            traceRoute(destination)
+            traceRoute(ip, destination)
         elif command[0] == "leave":
             '''该路由器离开（损坏）'''
             '''这里需要算法自动执行程序更新路由表'''
@@ -87,14 +99,31 @@ def listenMain():
         request = coon.recv(1024).decode().split()
         if request[0] == "traceroute":
             '''继续上一级的traceroute()继续寻路'''
-            destination = request[1]
-            traceRoute(destination)
+            ttl = int(request[1]) - 1
+            if ttl == 0:
+                coon.send("response" + " " + request[2] + " " + ip)
+            else:
+                so = socket.socket()
+                nextip = Routing_Table[request[3]]["Next_Node"]
+                so.connect((nextip, listen_port))
+                so.send("traceroute" + " " + str(ttl) + " " + request[2] + " " + request[3]).encode()
+        elif request[0] == "responce":
+            '''中间路由器回复报文格式: response sourceip curip'''
+            if request[0] == "response" and request[1] == ip:
+                print(str(ttl) + " " + request[2])
+            else: 
+                lastip = Routing_Table[request[1]]["Next_Node"]
+                so = socket.socket()
+                so.connect((lastip, listen_port))
+                so.send(request[0] + " " + request[1] + " " + request[2])
         elif request[0] == "leave":
             '''某一相邻路由器离开网络'''
             '''这里需要算法自动执行程序更新路由表'''
             router_ip = request[1]
             del Routing_Table[router_ip]
             coon.send("Success!").encode()
+        coon.close()
+    s.close()
 
 
 def main():
