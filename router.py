@@ -6,7 +6,6 @@ import os
 ip = '127.0.0.1'
 listen_port = 16330
 command_port = 16440
-exitFlag = 0
 
 Routing_Table = {}
 
@@ -14,9 +13,6 @@ Routing_Table = {}
 #     'Distance' : '''总距离（字符串）''',
 #     'Next_Node' : '''下一节点（字符串）''',
 # }
-
-#自动生成路由表
-#def makeRoutingTable():
 
 def showRoutingTable():
     '''获取路由表'''
@@ -45,13 +41,6 @@ def traceRoute(myip, destination):
         s.connect((nextip, listen_port))
         s.send("traceroute" + " " + str(ttl) + " "  + myip + " " +destination).encode()
         '''源IP报文格式: traceroute ttl myip destinationip'''
-        # responsr = s.recv(1024).decode().split()
-        # '''中间路由器回复报文格式: response sourceip curip'''
-        # if response[0] == "response" and response[1] == myip:
-        #     print(str(ttl) + " " + response[2])
-        # if response[2] == destination:
-        #     print("跟踪完成")
-        #     break
         rp = s.recv(1024).decode()
         print(str(ttl) + " " + rp.split()[2])
         if (rp.split()[2] == destination):
@@ -59,8 +48,8 @@ def traceRoute(myip, destination):
             break
         s.close()
         ttl = ttl + 1
-        if ttl >5:
-            print("失败，太远了")
+    if ttl >5:
+        print("失败，太远了")
 
 def leave():
     '''该路由器离开网络'''
@@ -106,26 +95,6 @@ def listenMain():
     while True:
         coon, addr = s.accept()
         request = coon.recv(1024).decode().split()
-        # if request[0] == "traceroute":
-        #     '''继续上一级的traceroute()继续寻路'''
-        #     '''源IP报文格式: traceroute ttl sourceip destinationip'''
-        #     ttl = int(request[1]) - 1
-        #     if ttl == 0:
-        #         coon.send("response" + " " + request[2] + " " + ip)
-        #     else:
-        #         so = socket.socket()
-        #         nextip = Routing_Table[request[3]]["Next_Node"]
-        #         so.connect((nextip, listen_port))
-        #         so.send("traceroute" + " " + str(ttl) + " " + request[2] + " " + request[3]).encode()
-        # elif request[0] == "response":
-        #     '''中间路由器回复报文格式: response sourceip curip'''
-        #     if request[1] == ip:
-        #         print(str(ttl) + " " + request[2])
-        #     else: 
-        #         lastip = Routing_Table[request[1]]["Next_Node"]
-        #         so = socket.socket()
-        #         so.connect((lastip, listen_port))
-        #         so.send(request[0] + " " + request[1] + " " + request[2])
         if request[0] == "traceroute":
             '''traceroute ttl sourceip destinationip'''
             ttl = int(request[1]) - 1
