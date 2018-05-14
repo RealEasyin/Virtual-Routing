@@ -36,6 +36,8 @@ def traceRoute(myip, destination):
     '''获取从源IP到目的IP的路径'''
     print("最多五个越点跟踪")
     print("从" + myip + "到" + destination + "的路由: ")
+    if not(destination in Routing_Table.keys()):
+        print("跟踪失败！路由表中没有此目标。")
     ttl = 1
     while ttl <= 5:
         s = socket.socket()
@@ -50,8 +52,15 @@ def traceRoute(myip, destination):
         # if response[2] == destination:
         #     print("跟踪完成")
         #     break
+        rp = s.recv(1024).decode()
+        print(str(ttl) + " " + rp.split()[2])
+        if (rp.split()[2] == destination):
+            print("跟踪结束，已找到目标节点。")
+            break
         s.close()
         ttl = ttl + 1
+        if ttl >5:
+            print("失败，太远了")
 
 def leave():
     '''该路由器离开网络'''
@@ -97,31 +106,41 @@ def listenMain():
     while True:
         coon, addr = s.accept()
         request = coon.recv(1024).decode().split()
+        # if request[0] == "traceroute":
+        #     '''继续上一级的traceroute()继续寻路'''
+        #     '''源IP报文格式: traceroute ttl sourceip destinationip'''
+        #     ttl = int(request[1]) - 1
+        #     if ttl == 0:
+        #         coon.send("response" + " " + request[2] + " " + ip)
+        #     else:
+        #         so = socket.socket()
+        #         nextip = Routing_Table[request[3]]["Next_Node"]
+        #         so.connect((nextip, listen_port))
+        #         so.send("traceroute" + " " + str(ttl) + " " + request[2] + " " + request[3]).encode()
+        # elif request[0] == "response":
+        #     '''中间路由器回复报文格式: response sourceip curip'''
+        #     if request[1] == ip:
+        #         print(str(ttl) + " " + request[2])
+        #     else: 
+        #         lastip = Routing_Table[request[1]]["Next_Node"]
+        #         so = socket.socket()
+        #         so.connect((lastip, listen_port))
+        #         so.send(request[0] + " " + request[1] + " " + request[2])
         if request[0] == "traceroute":
-            '''继续上一级的traceroute()继续寻路'''
+            '''traceroute ttl sourceip destinationip'''
             ttl = int(request[1]) - 1
             if ttl == 0:
-                coon.send("response" + " " + request[2] + " " + ip)
+                '''ttl==0时，向源节点回传response sourceip ttlip'''
+                coon.send("response" + " " + request[2] + " " + ip).encode()
             else:
-                so = socket.socket()
+                '''否则继续向下一节点传送traceroute ttl sourceip destinationip'''
+                traso = socket.socket()
                 nextip = Routing_Table[request[3]]["Next_Node"]
-                so.connect((nextip, listen_port))
-                so.send("traceroute" + " " + str(ttl) + " " + request[2] + " " + request[3]).encode()
-        elif request[0] == "responce":
-            '''中间路由器回复报文格式: response sourceip curip'''
-            if request[0] == "response" and request[1] == ip:
-                print(str(ttl) + " " + request[2])
-            else: 
-                lastip = Routing_Table[request[1]]["Next_Node"]
-                so = socket.socket()
-                so.connect((lastip, listen_port))
-                so.send(request[0] + " " + request[1] + " " + request[2])
-        elif request[0] == "leave":
-            '''某一相邻路由器离开网络'''
-            '''这里需要算法自动执行程序更新路由表'''
-            router_ip = request[1]
-            del Routing_Table[router_ip]
-            coon.send("Success!").encode()
+                traso.connect((nextip, listen_port))
+                traso.send("traceroute" + " " + str(ttl) + " " + request[2] + " " + request[3]).encode()
+                '''等待传回的response报文：response sourceip ttlip，并传给上一个节点'''
+                response = traso.recv(1024).encode()
+                coon.send(response).encode()
         coon.close()
     s.close()
 
