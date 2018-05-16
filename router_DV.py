@@ -123,6 +123,8 @@ def newPath(nip, distance):
 
 
 def leave():
+    for t in Routing_Table.keys():
+        Routing_Table[t]["Distance"] = 99999
     for t in n_table.keys():
         Routing_Table[t]["Distance"] = 99999
         if t in n_table.keys():
